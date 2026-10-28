@@ -1,0 +1,11 @@
+{
+  "name": "claude-aviso-sonoro",
+  "owner": { "name": "jvcunhas" },
+  "plugins": [
+    {
+      "name": "aviso-sonoro",
+      "source": "./",
+      "description": "Toca um som quando o Claude termina de trabalhar ou precisa da sua resposta (Claude Code no WSL)"
+    }
+  ]
+}
