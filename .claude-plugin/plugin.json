@@ -1,5 +1,5 @@
 {
   "name": "aviso-sonoro",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Toca um som do Windows quando o Claude termina o turno ou precisa da sua resposta"
 }

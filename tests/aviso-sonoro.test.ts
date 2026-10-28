@@ -152,6 +152,36 @@ test('permissão sem resposta toca 2x, e 2x de novo depois de 5 minutos', async 
   expect(sons).toEqual([ATENCAO, ATENCAO])
 })
 
+test('a notificação que o Claude Code repete 6 s depois do diálogo não toca de novo', async ($, on) => {
+  const { clock, sons, segurar, responder } = montar(on)
+  segurar()
+
+  const chamada = $.tool.call({ tool: 'Bash', command: 'rm x' })
+  await $.classic.PermissionRequest({ tool_name: 'Bash', tool_input: { command: 'rm x' } })
+  await clock.advance(6_000)
+  await $.classic.Notification({ message: 'Claude needs your permission to use Bash', notification_type: 'permission_prompt' })
+  await clock.settle()
+  expect(sons).toEqual([ATENCAO])
+
+  // Respondido esse, o próximo pedido toca normalmente.
+  responder()
+  await chamada
+  await clock.advance(10_000)
+  void $.tool.call({ tool: 'Bash', command: 'rm y' })
+  await $.classic.PermissionRequest({ tool_name: 'Bash', tool_input: { command: 'rm y' } })
+  await clock.settle()
+  expect(sons).toEqual([ATENCAO, ATENCAO])
+})
+
+test('um diálogo que só chega como notificação ainda toca', async ($, on) => {
+  const { clock, sons } = montar(on)
+
+  await $.classic.Notification({ message: 'MCP quer uma resposta', notification_type: 'elicitation_dialog' })
+  await clock.settle()
+
+  expect(sons).toEqual([ATENCAO])
+})
+
 test('responder a permissão cancela o lembrete', async ($, on) => {
   const { clock, sons, segurar, responder } = montar(on)
   segurar()

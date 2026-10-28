@@ -11,8 +11,7 @@ const SONS = {
 
 type Som = keyof typeof SONS
 
-// Pedido de permissão costuma chegar por dois caminhos (PermissionRequest e
-// Notification); dentro dessa janela o segundo aviso igual é ignorado.
+// Dois avisos iguais que chegam juntos dentro dessa janela tocam uma vez.
 const JANELA_MS = 2500
 
 // Sem resposta nesse tempo, o mesmo som toca de novo, uma vez.
@@ -83,9 +82,12 @@ const avisar = async ($: EngineInterface, som: Som, loop: string | undefined) =>
   }
 }
 
-const pedirResposta = ($: EngineInterface, loop: string | undefined) => {
+// O Claude Code repete cada pedido de permissão como notificação 6 s depois do
+// diálogo abrir. Com um diálogo do loop ainda aberto, o som já tocou.
+const pedirResposta = async ($: EngineInterface, loop: string | undefined) => {
+  if (esperandoVoce.has(loop)) return
   esperandoVoce.add(loop)
-  return avisar($, 'atencao', loop)
+  await avisar($, 'atencao', loop)
 }
 
 const registrarAcao = async ($: EngineInterface) => {
@@ -97,6 +99,7 @@ export const register: Register = on => {
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
     if (e.agentId !== undefined) return result
+    esperandoVoce.delete(undefined)
 
     if (e.isAborted) {
       cancelarLembrete()
@@ -112,6 +115,7 @@ export const register: Register = on => {
   on('prompt.submit', async ($, e, next) => {
     if (e.origin.kind === 'composer' || e.origin.kind === 'bridge') {
       cancelarLembrete()
+      esperandoVoce.clear()
       await registrarAcao($)
     }
     return next(e)
@@ -140,8 +144,10 @@ export const register: Register = on => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
+  // A notificação pode vir sem o id do subagente: com qualquer diálogo aberto,
+  // ela é a repetição de um pedido que já tocou.
   on('classic.Notification', { notification_type: /^(permission_prompt|elicitation_dialog)$/ }, ($, e, next) => {
-    void pedirResposta($, e.agent_id)
+    if (esperandoVoce.size === 0) void pedirResposta($, e.agent_id)
     return next(e)
   }).catch(($, e, next) => next(e))
 }
